@@ -24,32 +24,37 @@ class ViewController: UIViewController {
   }
 
   @IBAction func buttonTapped(_ sender: Any) {
-    let allAssets = PHAsset.fetchAssets(with: .image, options: nil)
+    let queue = DispatchQueue(label: "serial-queue")
 
-    let sizes: [CGSize] = [
-      CGSize(width: 750, height: 750),
-      CGSize(width: 960, height: 960)
-    ]
-
-    for asset in [allAssets.lastObject!] {
+    let sizes = (750...960).map { return CGSize(width: CGFloat($0), height: CGFloat($0)) }
+    for asset in self.getAllAssets().reversed() {
       for targetSize in sizes {
-        DispatchQueue.global(qos: .background).async {
+        queue.async {
           self.requestImage(for: asset, targetSize: targetSize)
         }
-        sleep(1)
       }
     }
   }
+
   private func requestImage(for asset: PHAsset, targetSize: CGSize) {
     let options = PHImageRequestOptions()
     options.isSynchronous = true
     options.resizeMode = .exact
     options.isNetworkAccessAllowed = true
+
     self.cachingImageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { (image, info) in
       let image = image!
       print(targetSize, image)
       assert(image.size.width == targetSize.width || image.size.height == targetSize.height)
     }
+  }
+
+  private func getAllAssets() -> [PHAsset] {
+    var assets: [PHAsset] = []
+    PHAsset.fetchAssets(with: .image, options: nil).enumerateObjects { (asset, index, _) in
+      assets.append(asset)
+    }
+    return assets
   }
 }
 
